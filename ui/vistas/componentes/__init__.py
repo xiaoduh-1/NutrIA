@@ -15,6 +15,9 @@ from .menu_personalizable import MenuPersonalizableInterface
 from .objetivos_nuticionales import ObjetivosNutricionalesInterface
 from .resultado_de_medicion import ResultadoMedicionInterface
 from .vista_previa import VistaPreviaInterface
+from .recuperar_contraseña import RecuperarPasswordWidget
+from .reporte_paciente import ReportePacienteInterface
+
 
 __all__ = [
     "pantallaPrincipal",
@@ -32,4 +35,6 @@ __all__ = [
     "ObjetivosNutricionalesInterface",
     "ResultadoMedicionInterface",
     "VistaPreviaInterface",
+    "RecuperarPasswordWidget",
+    "ReportePacienteInterface"
 ]

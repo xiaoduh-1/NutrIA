@@ -20,6 +20,7 @@ from .carga_menu import CargaMenuInterface
 from .menu_personalizable import MenuPersonalizableInterface
 from .editar_comida import EditarComidaInterface
 from .vista_previa import VistaPreviaInterface
+from .reporte_paciente import ReportePacienteInterface
 
 class BaseInterface(QWidget):
     def __init__(self, nombre, parent=None):
@@ -64,17 +65,19 @@ class pantallaPrincipal(FluentWindow):
         self.editar_comida_interface = EditarComidaInterface(self)
         self.vista_previa_interface = VistaPreviaInterface(self)
 
+        self.reporte_paciente_interface = ReportePacienteInterface(self)
+        self._origen_reporte = self.ficha_paciente_interface
+
         #Inicio
         self.addSubInterface(self.inicio_interface, FluentIcon.HOME, "Inicio",
                              NavigationItemPosition.TOP)
         #Paciente
         self.addSubInterface(self.paciente_interface, FluentIcon.PEOPLE, "Paciente",
                              NavigationItemPosition.TOP)
-        self.addSubInterface(self.agregar_paciente_interface, FluentIcon.ADD, "Agregar Paciente",
+        self.addSubInterface(self.agregar_paciente_interface, FluentIcon.ADD, "Agregar paciente",
                              NavigationItemPosition.TOP, parent=self.paciente_interface)
-        self.addSubInterface(self.buscar_pacientes_interface, FluentIcon.SEARCH, "Buscar Paciente",
+        self.addSubInterface(self.buscar_pacientes_interface, FluentIcon.SEARCH, "Buscar paciente",
                             NavigationItemPosition.TOP, parent=self.paciente_interface)
-
 
         #Agenda
         self.addSubInterface(self.agenda_interface, FluentIcon.CALENDAR, "Agenda",
@@ -100,6 +103,11 @@ class pantallaPrincipal(FluentWindow):
         self.addSubInterface(self.ficha_paciente_interface, FluentIcon.PEOPLE, "Ficha paciente",
                              NavigationItemPosition.TOP)
         self.navigationInterface.removeWidget("fichaPacienteInterface")
+
+        #Reporte paciente
+        self.addSubInterface(self.reporte_paciente_interface, FluentIcon.DOCUMENT, "Reporte",
+                             NavigationItemPosition.TOP)
+        self.navigationInterface.removeWidget("reportePacienteInterface")
 
         #Mediciones
         self.addSubInterface(self.nueva_medicion_interface, FluentIcon.ADD, "Nueva medicion",
@@ -148,9 +156,10 @@ class pantallaPrincipal(FluentWindow):
             lambda: self.switchTo(self.buscar_pacientes_interface))
         self.agregar_paciente_interface.btn_guardar.clicked.connect(
             lambda: self.switchTo(self.buscar_pacientes_interface))
-
         self.reportes_de_pacientes.btn_regresar.clicked.connect(
             lambda: self.switchTo(self.inicio_interface))
+        self.reporte_paciente_interface.btn_regresar.clicked.connect(
+            self.regresar_reporte)
 
         #Ficha de paciente
         for tarjeta in self.buscar_pacientes_interface.tarjetas:
@@ -161,11 +170,12 @@ class pantallaPrincipal(FluentWindow):
             lambda: self.switchTo(self.agregar_paciente_interface))
 
         self.ficha_paciente_interface.btn_ver_reporte.clicked.connect(
-            lambda: self.switchTo(self.reportes_pacientes_interface))
+            lambda: self.abrir_reporte(self.ficha_paciente_interface))
 
-        #Mediciones
-        self.ficha_paciente_interface.btn_nueva_medicion.clicked.connect(
-            lambda: self.switchTo(self.nueva_medicion_interface))
+        #Reporte paciente
+        for boton in self.reportes_de_pacientes.botones_ver + self.reportes_de_pacientes.botones_pdf:
+            boton.clicked.connect(
+                lambda _checked=False: self.abrir_reporte(self.reportes_de_pacientes))
 
         self.nueva_medicion_interface.btn_siguiente.clicked.connect(
             lambda: self.switchTo(self.medicion_interface))
@@ -197,9 +207,10 @@ class pantallaPrincipal(FluentWindow):
         self.editar_comida_interface.btn_guardar.clicked.connect(
             lambda: self.switchTo(self.menu_personalizable_interface))
 
-        # Vista previa
+        #Vista previa
         self.vista_previa_interface.btn_regresar.clicked.connect(
             lambda: self.switchTo(self.menu_personalizable_interface))
+
 
     #Cerrar sesion
     def cerrar_sesion(self):
@@ -207,3 +218,8 @@ class pantallaPrincipal(FluentWindow):
     def generar_menu(self):
         self.switchTo(self.carga_menu_interface)
         QTimer.singleShot(3000, lambda: self.switchTo(self.menu_personalizable_interface))
+    def abrir_reporte(self, origen):
+        self._origen_reporte = origen
+        self.switchTo(self.reporte_paciente_interface)
+    def regresar_reporte(self):
+        self.switchTo(self._origen_reporte)
