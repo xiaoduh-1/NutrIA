@@ -18,6 +18,7 @@ from .vista_previa import VistaPreviaInterface
 from .recuperar_contraseña import RecuperarPasswordWidget
 from .reporte_paciente import ReportePacienteInterface
 from .configuracion import ConfiguracionInterface
+from .inicio import InicioInterface
 
 __all__ = [
     "pantallaPrincipal",
@@ -38,4 +39,5 @@ __all__ = [
     "RecuperarPasswordWidget",
     "ReportePacienteInterface",
     "ConfiguracionInterface",
+    "inicio",
 ]
