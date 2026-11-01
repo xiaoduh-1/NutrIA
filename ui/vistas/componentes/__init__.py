@@ -17,7 +17,7 @@ from .resultado_de_medicion import ResultadoMedicionInterface
 from .vista_previa import VistaPreviaInterface
 from .recuperar_contraseña import RecuperarPasswordWidget
 from .reporte_paciente import ReportePacienteInterface
-
+from .configuracion import ConfiguracionInterface
 
 __all__ = [
     "pantallaPrincipal",
@@ -36,5 +36,6 @@ __all__ = [
     "ResultadoMedicionInterface",
     "VistaPreviaInterface",
     "RecuperarPasswordWidget",
-    "ReportePacienteInterface"
+    "ReportePacienteInterface",
+    "ConfiguracionInterface",
 ]

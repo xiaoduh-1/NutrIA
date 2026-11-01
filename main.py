@@ -8,16 +8,22 @@ from ui.vistas.componentes import pantallaPrincipal
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    login = LoginWindow()
-    ventana_principal = None
+    ventanas = {"login": None, "principal": None}
+
+    def mostrar_login():
+        ventanas["login"] = LoginWindow()
+        ventanas["login"].login_exitoso.connect(abrir_principal)
+        ventanas["login"].show()
 
     def abrir_principal():
-        global ventana_principal
-        ventana_principal = pantallaPrincipal()
-        ventana_principal.show()
-        login.close()
-    
-    login.login_exitoso.connect(abrir_principal)
-    login.show()
+        ventanas["principal"] = pantallaPrincipal()
+        ventanas["principal"].sesion_cerrada.connect(cerrar_sesion)
+        ventanas["principal"].show()
+        ventanas["login"].close()
 
+    def cerrar_sesion():
+        ventanas["principal"].close()
+        mostrar_login()
+
+    mostrar_login()
     sys.exit(app.exec())

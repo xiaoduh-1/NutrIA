@@ -33,7 +33,7 @@ class ReportePacienteInterface(QWidget):
         #Botones
         botones = QHBoxLayout()
         self.btn_regresar = PushButton(FluentIcon.LEFT_ARROW, "Regresar")
-        self.btn_exportar = PushButton(FluentIcon.DOCUMENT,"Exportar PDF")
+        self.btn_exportar = PrimaryPushButton(FluentIcon.DOCUMENT,"Exportar PDF")
         botones.addWidget(self.btn_regresar)
         botones.addStretch()
         botones.addWidget(self.btn_exportar)
