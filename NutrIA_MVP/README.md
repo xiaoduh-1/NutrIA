@@ -17,6 +17,8 @@ No se precargan pacientes, citas, mediciones ni alimentos de prueba. El menú de
 
 Al abrir Objetivos nutricionales se sugiere una meta calórica con Mifflin–St Jeor y el factor de actividad elegido. Se resta 500 kcal para pérdida de peso, se suman 500 kcal para ganancia muscular y se usa mantenimiento para mantenimiento u otro objetivo. El usuario puede editar la sugerencia. Se necesita fecha de nacimiento válida y sexo Masculino o Femenino; si falta alguno de esos datos, la pantalla explica por qué no se pudo sugerir y permite capturar el objetivo manualmente.
 
+La interfaz fusionada añade Inicio, Configuración, Reporte de paciente, Registro y Recuperación de contraseña. Inicio obtiene citas y conteos del repositorio temporal, y Reporte de paciente muestra el historial del paciente seleccionado. Registro y recuperación son por ahora pantallas visuales: no hay autenticación, alta de cuentas ni envío de correo conectado. La configuración de consultorio y usuario también queda pendiente de persistencia.
+
 ## Sustituir memoria por PostgreSQL
 
 Las pantallas deben seguir dependiendo de las operaciones del repositorio y no conectarse directamente a PostgreSQL. Para migrar, conserva estos métodos de `RepositorioMemoria` en una implementación PostgreSQL, cambia la creación del repositorio en `datos/__init__.py` y añade configuración de conexión y migraciones de esquema. Así se puede validar el flujo funcional antes de introducir persistencia permanente.

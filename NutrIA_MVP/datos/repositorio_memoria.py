@@ -46,9 +46,23 @@ class RepositorioMemoria:
         return None
 
     def crear_cita(self, datos):
+        conflicto = self.buscar_conflicto_cita(datos["fecha"], datos["hora"])
+        if conflicto:
+            raise ValueError(
+                f"Debe haber al menos 30 minutos entre citas. Ya existe una cita a las {conflicto['hora']}."
+            )
         cita = {**datos, "id": str(uuid4()), "creado_en": datetime.now().isoformat(timespec="seconds")}
         self.citas[cita["id"]] = cita
         return cita
+
+    def buscar_conflicto_cita(self, fecha, hora, separacion_minutos=30):
+        hora_solicitada = datetime.strptime(hora, "%H:%M")
+        for cita in self.listar_citas(fecha):
+            hora_existente = datetime.strptime(cita["hora"], "%H:%M")
+            diferencia = abs((hora_solicitada - hora_existente).total_seconds()) / 60
+            if diferencia < separacion_minutos:
+                return cita
+        return None
 
     def listar_citas(self, fecha=None):
         fecha = fecha or date.today().isoformat()

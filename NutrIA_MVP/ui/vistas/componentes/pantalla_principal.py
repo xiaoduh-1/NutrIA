@@ -4,6 +4,7 @@ from datetime import date, datetime
 os.environ["QT_API"] = "pyside6"
 
 from PySide6.QtWidgets import QWidget
+from PySide6.QtGui import QGuiApplication
 from qfluentwidgets import FluentWindow, NavigationItemPosition, FluentIcon, setTheme, Theme
 from .calendario import calendarioInterface
 from .proximas_citas import proximascitasInterface
@@ -15,12 +16,15 @@ from .ficha_paciente import FichaPacienteInterface
 from .nueva_medicion import NuevaMedicionInterface
 from .medicion import MedicionInterface
 from .resultado_de_medicion import ResultadoMedicionInterface
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 from .objetivos_nuticionales import ObjetivosNutricionalesInterface
 from .carga_menu import CargaMenuInterface
 from .menu_personalizable import MenuPersonalizableInterface
 from .editar_comida import EditarComidaInterface
 from .vista_previa import VistaPreviaInterface
+from .reporte_paciente import ReportePacienteInterface
+from .configuracion import ConfiguracionInterface
+from .inicio import InicioInterface
 from PySide6.QtWidgets import QMessageBox
 from datos import repositorio
 
@@ -33,13 +37,24 @@ class BaseInterface(QWidget):
 
 
 class pantallaPrincipal(FluentWindow):
+    sesion_cerrada = Signal()
+
+    def centrar(self):
+        pantalla = QGuiApplication.primaryScreen()
+        if pantalla:
+            area = pantalla.availableGeometry()
+            marco = self.frameGeometry()
+            marco.moveCenter(area.center())
+            self.move(marco.topLeft())
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NutrIA")
         self.resize(1100, 700)
+        self.centrar()
         setTheme(Theme.DARK)
 
-        self.inicio_interface = BaseInterface("inicioInterface", self)
+        self.inicio_interface = InicioInterface(self)
 
         self.paciente_interface = BaseInterface("pacienteInterface", self)
         self.buscar_pacientes_interface = buscarPacientes(self)
@@ -53,9 +68,11 @@ class pantallaPrincipal(FluentWindow):
         self.reportes_interface = BaseInterface("reportes", self)
         self.reportes_de_pacientes = reportedePacientes(self)
 
-        self.configuracion_interface = BaseInterface("configuracionInterface", self)
+        self.configuracion_interface = ConfiguracionInterface(self)
 
         self.ficha_paciente_interface = FichaPacienteInterface(self)
+        self.reporte_paciente_interface = ReportePacienteInterface(self)
+        self._origen_reporte = self.ficha_paciente_interface
 
         self.nueva_medicion_interface = NuevaMedicionInterface(self)
         self.medicion_interface = MedicionInterface(self)
@@ -104,6 +121,10 @@ class pantallaPrincipal(FluentWindow):
                              NavigationItemPosition.TOP)
         self.navigationInterface.removeWidget("fichaPacienteInterface")
 
+        self.addSubInterface(self.reporte_paciente_interface, FluentIcon.DOCUMENT, "Reporte paciente",
+                             NavigationItemPosition.TOP)
+        self.navigationInterface.removeWidget("reportePacienteInterface")
+
         #Mediciones
         self.addSubInterface(self.nueva_medicion_interface, FluentIcon.ADD, "Nueva medicion",
                              NavigationItemPosition.TOP)
@@ -148,6 +169,8 @@ class pantallaPrincipal(FluentWindow):
 
         self.reportes_de_pacientes.btn_regresar.clicked.connect(
             lambda: self.switchTo(self.inicio_interface))
+        self.reporte_paciente_interface.btn_regresar.clicked.connect(self.regresar_reporte)
+        self.reportes_de_pacientes.reporte_seleccionado.connect(self.abrir_reporte_desde_lista)
 
         #Ficha de paciente
         self.buscar_pacientes_interface.paciente_seleccionado.connect(self.abrir_paciente)
@@ -157,8 +180,8 @@ class pantallaPrincipal(FluentWindow):
             self.editar_paciente)
         self.ficha_paciente_interface.btn_eliminar.clicked.connect(self.eliminar_paciente)
 
-        self.ficha_paciente_interface.btn_ver_reporte.clicked.connect(self.abrir_reportes_paciente)
-        self.reportes_de_pacientes.reporte_seleccionado.connect(self.abrir_reporte_paciente)
+        self.ficha_paciente_interface.btn_ver_reporte.clicked.connect(
+            lambda: self.abrir_reporte(self.ficha_paciente_interface))
 
         #Mediciones
         self.ficha_paciente_interface.btn_nueva_medicion.clicked.connect(
@@ -196,9 +219,28 @@ class pantallaPrincipal(FluentWindow):
         self.vista_previa_interface.btn_regresar.clicked.connect(
             lambda: self.switchTo(self.menu_personalizable_interface))
 
+        # Inicio y configuración
+        self.inicio_interface.btn_paciente.clicked.connect(
+            lambda: self.switchTo(self.agregar_paciente_interface))
+        self.inicio_interface.btn_medicion.clicked.connect(self.abrir_medicion_desde_inicio)
+        self.inicio_interface.btn_cita.clicked.connect(
+            lambda: self.switchTo(self.nueva_cita_interface))
+        self.inicio_interface.paciente_seleccionado.connect(self.abrir_paciente)
+        self.configuracion_interface.btn_cancelar.clicked.connect(
+            lambda: self.switchTo(self.inicio_interface))
+        self.configuracion_interface.btn_guardar.clicked.connect(
+            lambda: self.switchTo(self.inicio_interface))
+
     #Cerrar sesion
     def cerrar_sesion(self):
-        self.close()
+        self.sesion_cerrada.emit()
+
+    def abrir_medicion_desde_inicio(self):
+        paciente_id = self.ficha_paciente_interface.paciente_id
+        if paciente_id and repositorio.obtener_paciente(paciente_id):
+            self.iniciar_medicion()
+        else:
+            self.switchTo(self.buscar_pacientes_interface)
 
     def abrir_paciente(self, paciente_id):
         if self.actualizar_contexto_paciente(paciente_id):
@@ -238,6 +280,7 @@ class pantallaPrincipal(FluentWindow):
         else:
             repositorio.crear_paciente(datos)
         self.buscar_pacientes_interface.actualizar_lista()
+        self.inicio_interface.actualizar()
         self.agregar_paciente_interface.cargar_paciente()
         self.switchTo(self.buscar_pacientes_interface)
 
@@ -262,6 +305,7 @@ class pantallaPrincipal(FluentWindow):
             repositorio.eliminar_paciente(paciente_id)
             self.limpiar_paciente_seleccionado()
             self.buscar_pacientes_interface.actualizar_lista()
+            self.inicio_interface.actualizar()
             self.switchTo(self.buscar_pacientes_interface)
 
     def limpiar_paciente_seleccionado(self):
@@ -294,6 +338,7 @@ class pantallaPrincipal(FluentWindow):
         medicion = repositorio.crear_medicion(self.ficha_paciente_interface.paciente_id, datos)
         self.ficha_paciente_interface.actualizar_mediciones()
         self.buscar_pacientes_interface.actualizar_lista()
+        self.inicio_interface.actualizar()
         resultado = self.resultado_medicion_interface
         resultado.lbl_paciente.setText(self.medicion_interface.lbl_paciente.text())
         resultado.lbl_fecha.setText(medicion["fecha"])
@@ -424,14 +469,29 @@ class pantallaPrincipal(FluentWindow):
                 repositorio.obtener_objetivos(paciente_id), repositorio.obtener_menu(paciente_id))
         self.switchTo(self.vista_previa_interface)
 
+    def abrir_reporte(self, origen=None, paciente_id=None):
+        paciente_id = paciente_id or self.ficha_paciente_interface.paciente_id
+        paciente = repositorio.obtener_paciente(paciente_id) if paciente_id else None
+        if not paciente:
+            QMessageBox.warning(self, "Paciente no seleccionado", "Selecciona un paciente para ver su reporte.")
+            return
+        if origen is not None:
+            self._origen_reporte = origen
+        self.reporte_paciente_interface.cargar_paciente(
+            paciente, repositorio.listar_mediciones(paciente_id))
+        self.switchTo(self.reporte_paciente_interface)
+
+    def abrir_reporte_desde_lista(self, paciente_id):
+        self.actualizar_contexto_paciente(paciente_id)
+        self.abrir_reporte(self.reportes_de_pacientes, paciente_id)
+
+    def regresar_reporte(self):
+        self.switchTo(self._origen_reporte)
+
     def abrir_reportes_paciente(self):
         self.reportes_de_pacientes.input_buscar.clear()
         self.reportes_de_pacientes.actualizar(self.ficha_paciente_interface.paciente_id)
         self.switchTo(self.reportes_de_pacientes)
-
-    def abrir_reporte_paciente(self, paciente_id):
-        self.abrir_paciente(paciente_id)
-        self.abrir_vista_previa()
 
     def cancelar_cita(self):
         self.nueva_cita_interface.limpiar()
@@ -441,8 +501,13 @@ class pantallaPrincipal(FluentWindow):
         datos = self.nueva_cita_interface.obtener_datos()
         if not datos:
             return
-        repositorio.crear_cita(datos)
+        try:
+            repositorio.crear_cita(datos)
+        except ValueError as error:
+            QMessageBox.warning(self, "Horario no disponible", str(error))
+            return
         self.proximas_citas_interface.actualizar()
+        self.inicio_interface.actualizar()
         self.nueva_cita_interface.limpiar()
         self.switchTo(self.proximas_citas_interface)
 
@@ -454,4 +519,5 @@ class pantallaPrincipal(FluentWindow):
             paciente = repositorio.obtener_paciente(paciente_id)
             self.menu_personalizable_interface.cargar_menu(
                 f"{paciente['nombre']} {paciente['apellido']}", menu)
+        self.inicio_interface.actualizar()
         QTimer.singleShot(500, lambda: self.switchTo(self.menu_personalizable_interface))

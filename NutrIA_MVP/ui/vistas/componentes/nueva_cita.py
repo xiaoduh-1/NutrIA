@@ -55,5 +55,14 @@ class NuevaCitaInterface(QWidget):
         if len(hora) != 5 or hora[2] != ":" or not hora[:2].isdigit() or not hora[3:].isdigit() or int(hora[:2]) > 23 or int(hora[3:]) > 59:
             QMessageBox.warning(self, "Hora no válida", "Usa el formato de 24 horas, por ejemplo 10:00.")
             return None
+        fecha = self.fecha.date().toString("yyyy-MM-dd")
+        conflicto = repositorio.buscar_conflicto_cita(fecha, hora)
+        if conflicto:
+            QMessageBox.warning(
+                self,
+                "Horario no disponible",
+                f"Debe haber al menos 30 minutos entre citas. Ya existe una cita a las {conflicto['hora']}.",
+            )
+            return None
         return {"paciente": nombre, "paciente_id": paciente["id"],
-                "fecha": self.fecha.date().toString("yyyy-MM-dd"), "hora": hora}
+                "fecha": fecha, "hora": hora}
