@@ -61,4 +61,12 @@ class MenuPersonalizableInterface(QWidget):
         self.lbl_titulo.setText(f"Menú personalizable: {nombre}")
         for comida, etiqueta in self.etiquetas_comida.items():
             alimentos = menu.get(comida, [])
-            etiqueta.setText("\n".join(f"{alimento} — {porcion}" for alimento, porcion in alimentos) or "(Sin alimentos)")
+            lineas = []
+            for alimento in alimentos:
+                if isinstance(alimento, dict):
+                    nombre_alimento = alimento.get("nombre", "")
+                    porcion = alimento.get("porcion", "")
+                else:
+                    nombre_alimento, porcion = alimento
+                lineas.append(f"{nombre_alimento} — {porcion}")
+            etiqueta.setText("\n".join(lineas) or "(Sin alimentos)")

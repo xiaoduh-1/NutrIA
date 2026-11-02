@@ -66,6 +66,15 @@ class VistaPreviaInterface(QWidget):
         self.lbl_peso.setText(f"Peso: {medicion.get('peso', '—')} kg")
         self.lbl_grasa.setText(f"Grasa: {medicion.get('grasa', '—')}%")
         self.lbl_calorias.setText(f"{objetivos.get('calorias') or '—'} kcal")
-        lineas = [f"{comida}: " + ", ".join(f"{nombre} ({porcion})" for nombre, porcion in alimentos)
-                  for comida, alimentos in menu.items()]
+        lineas = []
+        for comida, alimentos in menu.items():
+            elementos = []
+            for alimento in alimentos:
+                if isinstance(alimento, dict):
+                    nombre = alimento.get("nombre", "")
+                    porcion = alimento.get("porcion", "")
+                else:
+                    nombre, porcion = alimento
+                elementos.append(f"{nombre} ({porcion})")
+            lineas.append(f"{comida}: " + ", ".join(elementos))
         self.lbl_menu.setText("\n".join(lineas) if lineas else "(Sin menú)")

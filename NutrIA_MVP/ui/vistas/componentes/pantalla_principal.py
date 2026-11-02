@@ -159,6 +159,7 @@ class pantallaPrincipal(FluentWindow):
         self.calendario_interface.btn_nueva_cita.clicked.connect(
             lambda: self.switchTo(self.nueva_cita_interface)
         )
+        self.calendario_interface.calendario.activated.connect(self.abrir_citas_fecha)
         self.nueva_cita_interface.btn_cancelar.clicked.connect(self.cancelar_cita)
         self.nueva_cita_interface.btn_guardar.clicked.connect(self.guardar_cita)
         
@@ -304,6 +305,7 @@ class pantallaPrincipal(FluentWindow):
         if respuesta == QMessageBox.Yes:
             repositorio.eliminar_paciente(paciente_id)
             self.limpiar_paciente_seleccionado()
+            self.calendario_interface.actualizar_marcadores()
             self.buscar_pacientes_interface.actualizar_lista()
             self.inicio_interface.actualizar()
             self.switchTo(self.buscar_pacientes_interface)
@@ -497,6 +499,13 @@ class pantallaPrincipal(FluentWindow):
         self.nueva_cita_interface.limpiar()
         self.switchTo(self.calendario_interface)
 
+    def abrir_citas_fecha(self, fecha):
+        fecha_iso = fecha.toString("yyyy-MM-dd")
+        if not repositorio.listar_citas(fecha_iso):
+            return
+        self.proximas_citas_interface.actualizar(fecha_iso)
+        self.switchTo(self.proximas_citas_interface)
+
     def guardar_cita(self):
         datos = self.nueva_cita_interface.obtener_datos()
         if not datos:
@@ -506,7 +515,8 @@ class pantallaPrincipal(FluentWindow):
         except ValueError as error:
             QMessageBox.warning(self, "Horario no disponible", str(error))
             return
-        self.proximas_citas_interface.actualizar()
+        self.calendario_interface.actualizar_marcadores()
+        self.proximas_citas_interface.actualizar(datos["fecha"])
         self.inicio_interface.actualizar()
         self.nueva_cita_interface.limpiar()
         self.switchTo(self.proximas_citas_interface)
