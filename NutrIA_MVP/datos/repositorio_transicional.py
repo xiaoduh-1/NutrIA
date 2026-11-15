@@ -448,5 +448,23 @@ class RepositorioTransicional:
         return self.obtener_menu(paciente_uuid)
 
     # Todos los módulos de persistencia actuales ya usan PostgreSQL.
+    def listar_catalogo(self, limite=500):
+        limite = max(1, min(int(limite), 500))
+        with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                "SELECT id, nombre, categoria, unidad_base, calorias_100, proteinas_100, "
+                "carbohidratos_100, grasas_100 FROM alimentos WHERE activo "
+                "ORDER BY categoria, nombre LIMIT %s",
+                (limite,),
+            )
+            resultados = []
+            for fila in cursor.fetchall():
+                alimento = dict(fila)
+                alimento["id"] = str(alimento["id"])
+                for campo in ("calorias_100", "proteinas_100", "carbohidratos_100", "grasas_100"):
+                    alimento[campo] = float(alimento[campo])
+                resultados.append(alimento)
+            return resultados
+
     def __getattr__(self, nombre):
         return getattr(self.memoria, nombre)

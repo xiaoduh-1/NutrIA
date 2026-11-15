@@ -27,6 +27,7 @@ from .configuracion import ConfiguracionInterface
 from .inicio import InicioInterface
 from PySide6.QtWidgets import QMessageBox
 from datos import repositorio
+from .hilo_menu import HiloGenerarMenu
 
 class BaseInterface(QWidget):
     def __init__(self, nombre, parent=None):
@@ -49,6 +50,7 @@ class pantallaPrincipal(FluentWindow):
 
     def __init__(self):
         super().__init__()
+        self._hilo_menu = None
         self.setWindowTitle("NutrIA")
         self.resize(1100, 700)
         self.centrar()
@@ -521,13 +523,45 @@ class pantallaPrincipal(FluentWindow):
         self.nueva_cita_interface.limpiar()
         self.switchTo(self.proximas_citas_interface)
 
-    def generar_menu(self):
-        self.switchTo(self.carga_menu_interface)
+    def regenerar_menu(self):
         paciente_id = self.ficha_paciente_interface.paciente_id
-        if paciente_id:
-            menu = repositorio.obtener_menu(paciente_id)
+        if paciente_id and repositorio.obtener_menu(paciente_id):
+            r = QMessageBox.question(self, "Regenerar menú",
+                                     "Esto reemplazará el menú actual, incluidas tus ediciones. ¿Continuar?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if r != QMessageBox.Yes:
+                return
+        self.generar_menu()
+
+    def generar_menu(self):
+        if self._hilo_menu and self._hilo_menu.isRunning():
+            return
+        paciente_id = self.ficha_paciente_interface.paciente_id
+        paciente = repositorio.obtener_paciente(paciente_id) if paciente_id else None
+        mediciones = repositorio.listar_mediciones(paciente_id) if paciente_id else []
+        objetivos = repositorio.obtener_objetivos(paciente_id) if paciente_id else {}
+        if not (paciente and mediciones and objetivos.get("calorias")):
+            QMessageBox.warning(self, "Datos insuficientes",
+                                "Se necesita un paciente con al menos una medición y calorías objetivo guardadas.")
+            return
+        self.switchTo(self.carga_menu_interface)
+        self._hilo_menu = HiloGenerarMenu(paciente_id, paciente, mediciones[0], objetivos, self)
+        self._hilo_menu.terminado.connect(self._menu_generado)
+        self._hilo_menu.fallo.connect(self._menu_fallo)
+        self._hilo_menu.start()
+
+    def _menu_generado(self, paciente_id, resultado):
+        for comida, alimentos in resultado["menu"].items():
+            repositorio.guardar_comida_menu(paciente_id, comida, alimentos)
+        if paciente_id == self.ficha_paciente_interface.paciente_id:
             paciente = repositorio.obtener_paciente(paciente_id)
             self.menu_personalizable_interface.cargar_menu(
-                f"{paciente['nombre']} {paciente['apellido']}", menu)
+                f"{paciente['nombre']} {paciente['apellido']}", repositorio.obtener_menu(paciente_id))
         self.inicio_interface.actualizar()
-        QTimer.singleShot(500, lambda: self.switchTo(self.menu_personalizable_interface))
+        self.switchTo(self.menu_personalizable_interface)
+        if resultado["avisos"]:
+            QMessageBox.information(self, "Revisa el menú", "\n".join(resultado["avisos"]))
+
+    def _menu_fallo(self, mensaje):
+        QMessageBox.critical(self, "No se pudo generar el menú", mensaje)
+        self.switchTo(self.objetivos_interface)
