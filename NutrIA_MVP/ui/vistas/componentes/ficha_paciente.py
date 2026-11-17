@@ -77,10 +77,20 @@ class FichaPacienteInterface(QWidget):
         mediciones = repositorio.listar_mediciones(self.paciente_id) if self.paciente_id else []
         self.tabla.setRowCount(len(mediciones))
         for fila, medicion in enumerate(mediciones):
-            valores = [medicion.get("fecha", ""), medicion.get("peso", ""),
-                       medicion.get("altura_cm", ""), medicion.get("grasa", ""), medicion.get("imc", "")]
+            agua = medicion.get("agua")
+            agua_litros = medicion.get("agua_litros")
+            agua_texto = (
+                f"{agua_litros:.1f} L ({agua:.1f}%)"
+                if agua_litros is not None and agua is not None
+                else f"{agua:.1f}%" if agua is not None else "—"
+            )
+            valores = [
+                medicion.get("fecha", ""), medicion.get("peso"),
+                medicion.get("altura_cm"), medicion.get("grasa"),
+                agua_texto, medicion.get("imc"),
+            ]
             for col, valor in enumerate(valores):
-                self.tabla.setItem(fila, col, QTableWidgetItem(str(valor)))
+                self.tabla.setItem(fila, col, QTableWidgetItem(str(valor) if valor is not None else "—"))
 
     #Pestaña informacion
     def _crear_pestana_info(self):
@@ -101,8 +111,8 @@ class FichaPacienteInterface(QWidget):
     #Pestaña mediciones
     def _crear_pestana_mediciones(self):
         self.tabla = TableWidget()
-        self.tabla.setColumnCount(5)
-        self.tabla.setHorizontalHeaderLabels(["Fecha", "Peso", "Estatura", "Grasa", "IMC"])
+        self.tabla.setColumnCount(6)
+        self.tabla.setHorizontalHeaderLabels(["Fecha", "Peso", "Estatura", "Grasa", "Agua", "IMC"])
         self.tabla.verticalHeader().hide()
         self.tabla.setBorderVisible(True)
         self.tabla.setBorderRadius(8)

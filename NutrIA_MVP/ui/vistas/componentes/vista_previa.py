@@ -30,9 +30,9 @@ class VistaPreviaInterface(QWidget):
         der = QVBoxLayout()
         der.addWidget(StrongBodyLabel("Resultado de la medición:"))
         self.lbl_peso = BodyLabel("Peso: — kg")
-        self.lbl_grasa = BodyLabel("Grasa: —%")
+        self.lbl_imc = BodyLabel("IMC: —")
         der.addWidget(self.lbl_peso)
-        der.addWidget(self.lbl_grasa)
+        der.addWidget(self.lbl_imc)
         der.addSpacing(8)
         der.addWidget(StrongBodyLabel("Objetivos nutricionales:"))
         der.addWidget(BodyLabel("— kcal"))
@@ -63,8 +63,10 @@ class VistaPreviaInterface(QWidget):
     def cargar_reporte(self, paciente, medicion, objetivos, menu):
         self.lbl_paciente.setText(f"Paciente: {paciente['nombre']} {paciente['apellido']}")
         self.lbl_fecha.setText(f"Fecha: {medicion.get('fecha', '—')}")
-        self.lbl_peso.setText(f"Peso: {medicion.get('peso', '—')} kg")
-        self.lbl_grasa.setText(f"Grasa: {medicion.get('grasa', '—')}%")
+        peso = medicion.get("peso")
+        imc = medicion.get("imc")
+        self.lbl_peso.setText(f"Peso: {peso if peso is not None else '—'} kg")
+        self.lbl_imc.setText(f"IMC: {imc if imc is not None else '—'}")
         self.lbl_calorias.setText(f"{objetivos.get('calorias') or '—'} kcal")
         lineas = []
         for comida, alimentos in menu.items():

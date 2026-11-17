@@ -53,6 +53,31 @@ class RepositorioTransicional:
         raise ValueError("La fecha de nacimiento debe tener formato DD/MM/AAAA.")
 
     @classmethod
+    def _validar_fecha_nacimiento(cls, valor):
+        nacimiento = cls._fecha_db(valor)
+        if nacimiento is None:
+            return None
+        hoy = date.today()
+        try:
+            limite_inferior = hoy.replace(year=hoy.year - 100)
+        except ValueError:
+            limite_inferior = hoy.replace(year=hoy.year - 100, day=28)
+        if nacimiento > hoy:
+            raise ValueError("La fecha de nacimiento no puede ser posterior a hoy.")
+        if nacimiento < limite_inferior:
+            raise ValueError(
+                f"La fecha de nacimiento no puede ser anterior al {limite_inferior.strftime('%d/%m/%Y')}."
+            )
+        return nacimiento
+
+    @staticmethod
+    def _validar_telefono(valor):
+        telefono = str(valor or "").strip()
+        if telefono and (len(telefono) != 10 or not telefono.isascii() or not telefono.isdigit()):
+            raise ValueError("El teléfono debe contener exactamente 10 dígitos.")
+        return telefono
+
+    @classmethod
     def _formatear_paciente(cls, fila):
         if fila is None:
             return None
@@ -95,7 +120,10 @@ class RepositorioTransicional:
             "calorias_kcal": "calorias",
         }
         for campo_db, campo_ui in equivalencias.items():
-            medicion[campo_ui] = float(medicion.pop(campo_db))
+            valor = medicion.pop(campo_db)
+            medicion[campo_ui] = float(valor) if valor is not None else None
+        agua_litros = medicion.get("agua_litros")
+        medicion["agua_litros"] = float(agua_litros) if agua_litros is not None else None
         medicion["altura_cm"] = float(medicion["altura_cm"])
         medicion["imc"] = float(medicion["imc"])
         if medicion.get("creado_en"):
@@ -106,7 +134,8 @@ class RepositorioTransicional:
     def _consulta_mediciones():
         return (
             "SELECT id, paciente_id, fecha, objetivo, actividad, motivo, peso_kg, "
-            "altura_cm, grasa_pct, masa_muscular_pct, agua_pct, calorias_kcal, imc, creado_en "
+            "altura_cm, grasa_pct, masa_muscular_pct, agua_pct, agua_litros, "
+            "calorias_kcal, imc, creado_en "
             "FROM mediciones"
         )
 
@@ -121,7 +150,8 @@ class RepositorioTransicional:
     def crear_paciente(self, datos):
         columnas = ", ".join(self.CAMPOS_PACIENTE)
         valores = [datos.get(campo, "") for campo in self.CAMPOS_PACIENTE]
-        valores[2] = self._fecha_db(valores[2])
+        valores[2] = self._validar_fecha_nacimiento(valores[2])
+        valores[4] = self._validar_telefono(valores[4])
         placeholders = ", ".join(["%s"] * len(self.CAMPOS_PACIENTE))
         with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
@@ -138,9 +168,11 @@ class RepositorioTransicional:
         asignaciones = ", ".join(f"{campo} = %s" for campo in campos)
         valores = [datos[campo] for campo in campos]
         if "fecha_nacimiento" in campos:
-            valores[campos.index("fecha_nacimiento")] = self._fecha_db(
+            valores[campos.index("fecha_nacimiento")] = self._validar_fecha_nacimiento(
                 datos["fecha_nacimiento"]
             )
+        if "telefono" in campos:
+            valores[campos.index("telefono")] = self._validar_telefono(datos["telefono"])
         valores.append(UUID(str(paciente_id)))
         with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
@@ -205,9 +237,52 @@ class RepositorioTransicional:
             cita_id = cursor.fetchone()[0]
         return next(cita for cita in self._listar_citas() if cita["id"] == str(cita_id))
 
-    def buscar_conflicto_cita(self, fecha, hora, separacion_minutos=30):
+    def obtener_cita(self, cita_id):
+        try:
+            cita_uuid = UUID(str(cita_id))
+        except (ValueError, TypeError, AttributeError):
+            return None
+        consulta = self._consulta_citas() + " WHERE c.id = %s"
+        with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(consulta, (cita_uuid,))
+            return self._formatear_cita(cursor.fetchone())
+
+    def actualizar_cita(self, cita_id, datos):
+        cita = self.obtener_cita(cita_id)
+        if not cita:
+            return None
+        conflicto = self.buscar_conflicto_cita(
+            datos["fecha"], datos["hora"], excluir_id=cita_id
+        )
+        if conflicto:
+            raise ValueError(
+                f"Debe haber al menos 30 minutos entre citas. Ya existe una cita a las {conflicto['hora']}."
+            )
+        with conectar() as conexion, conexion.cursor() as cursor:
+            cursor.execute(
+                "UPDATE citas SET fecha = %s, hora = %s WHERE id = %s",
+                (
+                    self._fecha_db(datos["fecha"]),
+                    datetime.strptime(datos["hora"], "%H:%M").time(),
+                    UUID(str(cita_id)),
+                ),
+            )
+        return self.obtener_cita(cita_id)
+
+    def eliminar_cita(self, cita_id):
+        try:
+            cita_uuid = UUID(str(cita_id))
+        except (ValueError, TypeError, AttributeError):
+            return False
+        with conectar() as conexion, conexion.cursor() as cursor:
+            cursor.execute("DELETE FROM citas WHERE id = %s", (cita_uuid,))
+            return cursor.rowcount > 0
+
+    def buscar_conflicto_cita(self, fecha, hora, separacion_minutos=30, excluir_id=None):
         hora_solicitada = datetime.strptime(hora, "%H:%M")
         for cita in self.listar_citas(str(self._fecha_db(fecha))):
+            if excluir_id and cita["id"] == str(excluir_id):
+                continue
             hora_existente = datetime.strptime(cita["hora"], "%H:%M")
             diferencia = abs((hora_solicitada - hora_existente).total_seconds()) / 60
             if diferencia < separacion_minutos:
@@ -229,20 +304,33 @@ class RepositorioTransicional:
         fecha = fecha or date.today().isoformat()
         return self._listar_citas(fecha)
 
+    def listar_citas_mes(self, fecha=None):
+        fecha = date.fromisoformat(str(fecha or date.today().isoformat())[:10])
+        inicio = date(fecha.year, fecha.month, 1)
+        if fecha.month == 12:
+            fin = date(fecha.year + 1, 1, 1)
+        else:
+            fin = date(fecha.year, fecha.month + 1, 1)
+        consulta = self._consulta_citas() + " WHERE c.fecha >= %s AND c.fecha < %s"
+        with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(consulta + " ORDER BY c.fecha, c.hora", (inicio, fin))
+            return [self._formatear_cita(fila) for fila in cursor.fetchall()]
+
     def crear_medicion(self, paciente_id, datos):
         fecha = self._fecha_db(datos["fecha"])
         valores = (
             UUID(str(paciente_id)), fecha, datos.get("objetivo", ""),
             datos.get("actividad", ""), datos.get("motivo", ""),
-            datos["peso"], datos["altura_cm"], datos["grasa"],
-            datos["masa_muscular"], datos["agua"], datos["calorias"], datos["imc"],
+            datos["peso"], datos["altura_cm"], datos.get("grasa"),
+            datos.get("masa_muscular"), datos.get("agua"), datos.get("agua_litros"),
+            datos.get("calorias"), datos["imc"],
         )
         with conectar() as conexion, conexion.cursor(row_factory=dict_row) as cursor:
             cursor.execute(
                 "INSERT INTO mediciones "
                 "(paciente_id, fecha, objetivo, actividad, motivo, peso_kg, altura_cm, "
-                "grasa_pct, masa_muscular_pct, agua_pct, calorias_kcal, imc) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
+                "grasa_pct, masa_muscular_pct, agua_pct, agua_litros, calorias_kcal, imc) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING *",
                 valores,
             )
             return self._formatear_medicion(cursor.fetchone())

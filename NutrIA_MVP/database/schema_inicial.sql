@@ -35,10 +35,11 @@ CREATE TABLE IF NOT EXISTS mediciones (
     motivo TEXT NOT NULL DEFAULT '',
     peso_kg NUMERIC(7, 2) NOT NULL CHECK (peso_kg > 0),
     altura_cm NUMERIC(6, 2) NOT NULL CHECK (altura_cm BETWEEN 50 AND 250),
-    grasa_pct NUMERIC(5, 2) NOT NULL CHECK (grasa_pct > 0),
-    masa_muscular_pct NUMERIC(5, 2) NOT NULL CHECK (masa_muscular_pct > 0),
-    agua_pct NUMERIC(5, 2) NOT NULL CHECK (agua_pct > 0),
-    calorias_kcal NUMERIC(8, 2) NOT NULL CHECK (calorias_kcal > 0),
+    grasa_pct NUMERIC(5, 2) CHECK (grasa_pct > 0),
+    masa_muscular_pct NUMERIC(5, 2) CHECK (masa_muscular_pct > 0),
+    agua_pct NUMERIC(5, 2) CHECK (agua_pct > 0),
+    agua_litros NUMERIC(6, 2) CHECK (agua_litros > 0),
+    calorias_kcal NUMERIC(8, 2) CHECK (calorias_kcal > 0),
     imc NUMERIC(5, 1) NOT NULL CHECK (imc > 0),
     creado_en TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

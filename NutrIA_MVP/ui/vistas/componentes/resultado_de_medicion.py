@@ -1,6 +1,9 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout
-from qfluentwidgets import (StrongBodyLabel, TitleLabel, BodyLabel, SubtitleLabel, CardWidget,PrimaryPushButton)
+from qfluentwidgets import (
+    StrongBodyLabel, TitleLabel, BodyLabel, CaptionLabel, SubtitleLabel,
+    CardWidget, PrimaryPushButton,
+)
 
 
 class ResultadoMedicionInterface(QWidget):
@@ -33,11 +36,9 @@ class ResultadoMedicionInterface(QWidget):
         #Tarjetas de resultados
         resultados = [
             ("Peso:", "—"),
-            ("Grasa:", "—"),
-            ("Masa Muscular:", "—"),
             ("IMC:", "—"),
-            ("Agua:", "—"),
-            ("Calorías:", "— kcal"),
+            ("Grasa estimada:", "— %"),
+            ("Agua corporal estimada:", "— L · — %"),
         ]
 
         grid = QGridLayout()
@@ -46,7 +47,7 @@ class ResultadoMedicionInterface(QWidget):
         self.valores = {}
 
         for i, (titulo, valor) in enumerate(resultados):
-            fila, col = divmod(i, 3)
+            fila, col = divmod(i, 2)
             bloque = QVBoxLayout()
             bloque.addWidget(BodyLabel(titulo))
 
@@ -62,6 +63,13 @@ class ResultadoMedicionInterface(QWidget):
             self.valores[titulo] = lbl_valor
 
         layout.addLayout(grid)
+        self.lbl_nota_estimaciones = CaptionLabel(
+            "Estimaciones antropométricas, no lecturas directas de la báscula. "
+            "Deurenberg se aplica dentro de los rangos de edad e IMC de la ecuación; "
+            "Watson estima agua total en adultos."
+        )
+        self.lbl_nota_estimaciones.setWordWrap(True)
+        layout.addWidget(self.lbl_nota_estimaciones)
         layout.addStretch()
 
         #Boton
@@ -78,4 +86,14 @@ class ResultadoMedicionInterface(QWidget):
         self.lbl_motivo.setText("Motivo: —")
         self.lbl_actividad.setText("Actividad física: —")
         for etiqueta, valor in self.valores.items():
-            valor.setText("— kcal" if etiqueta == "Calorías:" else "—")
+            if etiqueta == "Grasa estimada:":
+                valor.setText("— %")
+            elif etiqueta == "Agua corporal estimada:":
+                valor.setText("— L · — %")
+            else:
+                valor.setText("—")
+        self.lbl_nota_estimaciones.setText(
+            "Estimaciones antropométricas, no lecturas directas de la báscula. "
+            "Deurenberg se aplica dentro de los rangos de edad e IMC de la ecuación; "
+            "Watson estima agua total en adultos."
+        )

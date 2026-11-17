@@ -68,6 +68,14 @@ class RepositorioMemoria:
         fecha = fecha or date.today().isoformat()
         return sorted((c for c in self.citas.values() if c["fecha"] == fecha), key=lambda c: c["hora"])
 
+    def listar_citas_mes(self, fecha=None):
+        fecha = date.fromisoformat(str(fecha or date.today().isoformat())[:10])
+        return sorted(
+            (c for c in self.citas.values()
+             if str(c["fecha"]).startswith(f"{fecha.year:04d}-{fecha.month:02d}")),
+            key=lambda c: (c["fecha"], c["hora"]),
+        )
+
     def crear_medicion(self, paciente_id, datos):
         medicion = {**datos, "id": str(uuid4()), "paciente_id": paciente_id,
                     "creado_en": datetime.now().isoformat(timespec="seconds")}

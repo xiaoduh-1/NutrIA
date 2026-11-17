@@ -1,6 +1,9 @@
 from PySide6.QtCore import QDate
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QButtonGroup
-from qfluentwidgets import (StrongBodyLabel, SubtitleLabel, CalendarPicker, RadioButton,LineEdit, PrimaryPushButton)
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QButtonGroup, QMessageBox
+from qfluentwidgets import (
+    StrongBodyLabel, SubtitleLabel, BodyLabel, CalendarPicker,
+    RadioButton, LineEdit, PrimaryPushButton,
+)
 
 
 class NuevaMedicionInterface(QWidget):
@@ -38,6 +41,10 @@ class NuevaMedicionInterface(QWidget):
         self.input_motivo = LineEdit()
         self.input_motivo.setPlaceholderText("Indicar motivo...")
         col_objetivo.addWidget(self.input_motivo)
+        col_objetivo.addWidget(BodyLabel("Estatura del paciente (cm):"))
+        self.input_altura = LineEdit()
+        self.input_altura.setPlaceholderText("Ejemplo: 170")
+        col_objetivo.addWidget(self.input_altura)
         col_objetivo.addStretch()
 
         #Nivel de actividad fisica
@@ -70,8 +77,24 @@ class NuevaMedicionInterface(QWidget):
     def limpiar(self):
         self.fecha.setDate(QDate.currentDate())
         self.input_motivo.clear()
+        self.input_altura.clear()
         for grupo in (self.grupo_objetivo, self.grupo_actividad):
             grupo.setExclusive(False)
             for boton in grupo.buttons():
                 boton.setChecked(False)
             grupo.setExclusive(True)
+
+    def obtener_altura(self):
+        texto = self.input_altura.text().strip().replace(",", ".")
+        try:
+            altura_cm = float(texto)
+            if not 50 <= altura_cm <= 250:
+                raise ValueError
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Estatura no válida",
+                "Captura la estatura del paciente entre 50 y 250 cm.",
+            )
+            return None
+        return altura_cm

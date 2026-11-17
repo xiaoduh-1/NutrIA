@@ -1,3 +1,8 @@
+import re
+from datetime import date, datetime
+
+from PySide6.QtCore import QRegularExpression
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QMessageBox
 from qfluentwidgets import (SubtitleLabel, BodyLabel, LineEdit, ComboBox, TextEdit,PushButton, PrimaryPushButton, FluentIcon)
 
@@ -21,10 +26,15 @@ class agregarPaciente(QWidget):
         self.input_nombre = LineEdit()
         self.input_apellido = LineEdit()
         self.input_fecha_nacimiento = LineEdit()
+        self.input_fecha_nacimiento.setInputMask("00/00/0000;_")
         self.input_fecha_nacimiento.setPlaceholderText("DD/MM/AAAA")
         self.combo_sexo = ComboBox()
         self.combo_sexo.addItems(["Masculino", "Femenino", "Otro"])
         self.input_telefono = LineEdit()
+        self.input_telefono.setMaxLength(10)
+        self.input_telefono.setValidator(
+            QRegularExpressionValidator(QRegularExpression(r"[0-9]{0,10}"), self.input_telefono)
+        )
         self.input_correo = LineEdit()
 
         grid.addWidget(BodyLabel("Nombre:"), 0, 0)
@@ -75,10 +85,16 @@ class agregarPaciente(QWidget):
         self.input_observaciones.setPlainText(paciente.get("observaciones", "") if paciente else "")
 
     def obtener_datos(self):
+        texto_fecha = self.input_fecha_nacimiento.text()
+        digitos_fecha = "".join(caracter for caracter in texto_fecha if caracter.isdigit())
+        fecha_nacimiento = (
+            f"{digitos_fecha[:2]}/{digitos_fecha[2:4]}/{digitos_fecha[4:]}"
+            if digitos_fecha else ""
+        )
         datos = {
             "nombre": self.input_nombre.text().strip(),
             "apellido": self.input_apellido.text().strip(),
-            "fecha_nacimiento": self.input_fecha_nacimiento.text().strip(),
+            "fecha_nacimiento": fecha_nacimiento,
             "sexo": self.combo_sexo.currentText(),
             "telefono": self.input_telefono.text().strip(),
             "correo": self.input_correo.text().strip(),
@@ -86,6 +102,34 @@ class agregarPaciente(QWidget):
         }
         if not datos["nombre"] or not datos["apellido"]:
             QMessageBox.warning(self, "Datos incompletos", "Nombre y apellido son obligatorios.")
+            return None
+        if datos["fecha_nacimiento"]:
+            if not re.fullmatch(r"[0-9]{2}/[0-9]{2}/[0-9]{4}", datos["fecha_nacimiento"]):
+                QMessageBox.warning(self, "Fecha no válida", "Usa el formato DD/MM/AAAA.")
+                return None
+            try:
+                nacimiento = datetime.strptime(datos["fecha_nacimiento"], "%d/%m/%Y").date()
+            except ValueError:
+                QMessageBox.warning(self, "Fecha no válida", "Escribe una fecha de nacimiento válida en formato DD/MM/AAAA.")
+                return None
+            hoy = date.today()
+            try:
+                fecha_limite = hoy.replace(year=hoy.year - 100)
+            except ValueError:  # 29 de febrero en años bisiestos
+                fecha_limite = hoy.replace(year=hoy.year - 100, day=28)
+            if nacimiento > hoy:
+                QMessageBox.warning(self, "Fecha no válida", "La fecha de nacimiento no puede ser posterior a hoy.")
+                return None
+            if nacimiento < fecha_limite:
+                QMessageBox.warning(
+                    self, "Fecha no válida",
+                    f"La fecha de nacimiento no puede ser anterior al {fecha_limite.strftime('%d/%m/%Y')}.",
+                )
+                return None
+        if datos["telefono"] and (
+            len(datos["telefono"]) != 10 or not datos["telefono"].isascii() or not datos["telefono"].isdigit()
+        ):
+            QMessageBox.warning(self, "Teléfono no válido", "El teléfono debe contener exactamente 10 dígitos.")
             return None
         if datos["correo"] and "@" not in datos["correo"]:
             QMessageBox.warning(self, "Correo no válido", "Revisa el formato del correo electrónico.")
